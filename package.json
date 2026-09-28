@@ -1,0 +1,14 @@
+{
+  "name": "ayu-ready-quiz",
+  "version": "1.0.0",
+  "description": "АЮ READY КВИЗ — подсчёт баллов с живой синхронизацией",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "UNLICENSED",
+  "private": true
+}
