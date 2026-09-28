@@ -82,21 +82,25 @@ function rowGroup(gid, x, y, pitch, f) {
   return `<p:grpSp><p:nvGrpSpPr><p:cNvPr id="${gid}" name="Место ${x.rowIndex + 1}"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm>${off}<a:chOff x="${E(X0)}" y="${E(y)}"/><a:chExt cx="${E(W)}" cy="${E(h)}"/></a:xfrm></p:grpSpPr>${parts}</p:grpSp>`;
 }
 
-// анимация как в шаблоне: по щелчку строки появляются снизу вверх, первое место — последним
+// анимация: один щелчок (пробел) — строки появляются сами по очереди,
+// от последнего места к первому, каждая через 1,5 секунды после предыдущей
+const STEP_MS = 1500;
 function timing(groupIds) {
-  let c = 2, pars = '';
+  if (!groupIds.length) return '';
+  let c = 4, effects = '';
   groupIds.forEach((spid, k) => {
     const dur = k === groupIds.length - 1 ? 1600 : 1200;
-    const a = ++c, b = ++c, e1 = ++c, s1 = ++c, t1 = ++c, x1 = ++c, y1 = ++c;
-    pars += `<p:par><p:cTn id="${a}" fill="hold"><p:stCondLst><p:cond delay="indefinite"/></p:stCondLst><p:childTnLst><p:par><p:cTn id="${b}" fill="hold"><p:stCondLst><p:cond delay="0"/></p:stCondLst><p:childTnLst><p:par><p:cTn id="${e1}" presetID="42" presetClass="entr" presetSubtype="0" fill="hold" nodeType="clickEffect"><p:stCondLst><p:cond delay="0"/></p:stCondLst><p:childTnLst>`
+    const e1 = ++c, s1 = ++c, t1 = ++c, x1 = ++c, y1 = ++c;
+    const node = k === 0 ? 'clickEffect' : 'withEffect';
+    effects += `<p:par><p:cTn id="${e1}" presetID="42" presetClass="entr" presetSubtype="0" fill="hold" nodeType="${node}"><p:stCondLst><p:cond delay="${k * STEP_MS}"/></p:stCondLst><p:childTnLst>`
       + `<p:set><p:cBhvr><p:cTn id="${s1}" dur="1" fill="hold"><p:stCondLst><p:cond delay="0"/></p:stCondLst></p:cTn><p:tgtEl><p:spTgt spid="${spid}"/></p:tgtEl><p:attrNameLst><p:attrName>style.visibility</p:attrName></p:attrNameLst></p:cBhvr><p:to><p:strVal val="visible"/></p:to></p:set>`
       + `<p:animEffect transition="in" filter="fade"><p:cBhvr><p:cTn id="${t1}" dur="${dur}"/><p:tgtEl><p:spTgt spid="${spid}"/></p:tgtEl></p:cBhvr></p:animEffect>`
       + `<p:anim calcmode="lin" valueType="num"><p:cBhvr><p:cTn id="${x1}" dur="${dur}" decel="100000" fill="hold"/><p:tgtEl><p:spTgt spid="${spid}"/></p:tgtEl><p:attrNameLst><p:attrName>ppt_x</p:attrName></p:attrNameLst></p:cBhvr><p:tavLst><p:tav tm="0"><p:val><p:strVal val="#ppt_x"/></p:val></p:tav><p:tav tm="100000"><p:val><p:strVal val="#ppt_x"/></p:val></p:tav></p:tavLst></p:anim>`
       + `<p:anim calcmode="lin" valueType="num"><p:cBhvr><p:cTn id="${y1}" dur="${dur}" decel="100000" fill="hold"/><p:tgtEl><p:spTgt spid="${spid}"/></p:tgtEl><p:attrNameLst><p:attrName>ppt_y</p:attrName></p:attrNameLst></p:cBhvr><p:tavLst><p:tav tm="0"><p:val><p:strVal val="#ppt_y+.1"/></p:val></p:tav><p:tav tm="100000"><p:val><p:strVal val="#ppt_y"/></p:val></p:tav></p:tavLst></p:anim>`
-      + `</p:childTnLst></p:cTn></p:par></p:childTnLst></p:cTn></p:par></p:childTnLst></p:cTn></p:par>`;
+      + `</p:childTnLst></p:cTn></p:par>`;
   });
-  if (!groupIds.length) return '';
-  return `<p:timing><p:tnLst><p:par><p:cTn id="1" dur="indefinite" restart="never" nodeType="tmRoot"><p:childTnLst><p:seq concurrent="1" nextAc="seek"><p:cTn id="2" dur="indefinite" nodeType="mainSeq"><p:childTnLst>${pars}</p:childTnLst></p:cTn><p:prevCondLst><p:cond evt="onPrev" delay="0"><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:prevCondLst><p:nextCondLst><p:cond evt="onNext" delay="0"><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:nextCondLst></p:seq></p:childTnLst></p:cTn></p:par></p:tnLst></p:timing>`;
+  const click = `<p:par><p:cTn id="3" fill="hold"><p:stCondLst><p:cond delay="indefinite"/></p:stCondLst><p:childTnLst><p:par><p:cTn id="4" fill="hold"><p:stCondLst><p:cond delay="0"/></p:stCondLst><p:childTnLst>${effects}</p:childTnLst></p:cTn></p:par></p:childTnLst></p:cTn></p:par>`;
+  return `<p:timing><p:tnLst><p:par><p:cTn id="1" dur="indefinite" restart="never" nodeType="tmRoot"><p:childTnLst><p:seq concurrent="1" nextAc="seek"><p:cTn id="2" dur="indefinite" nodeType="mainSeq"><p:childTnLst>${click}</p:childTnLst></p:cTn><p:prevCondLst><p:cond evt="onPrev" delay="0"><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:prevCondLst><p:nextCondLst><p:cond evt="onNext" delay="0"><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:nextCondLst></p:seq></p:childTnLst></p:cTn></p:par></p:tnLst></p:timing>`;
 }
 
 function slideXml(teams) {
