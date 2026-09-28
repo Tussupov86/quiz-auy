@@ -202,7 +202,7 @@ h2{font-family:"Russo One","Golos Text",sans-serif;font-weight:400;font-size:18p
   let teams = [];
   let mode = 'view';
   let pendingDel = null;
-  let online = false, pushing = false, dirty = false, lastUpdate = 0, knownRev = -1;
+  let online = false, pushing = false, dirty = false, lastUpdate = 0, knownRev = -1, bootId = null;
 
   const $ = id => document.getElementById(id);
   const num = v => { const n = parseFloat(String(v).replace(',','.')); return isFinite(n) ? n : 0; };
@@ -307,10 +307,27 @@ h2{font-family:"Russo One","Golos Text",sans-serif;font-weight:400;font-size:18p
     applyMode();
   }
 
+  // ---------- копия счёта на этом устройстве ----------
+  function saveBackup(at){ lsSet(LS.backup, JSON.stringify({teams, updatedAt: at || Date.now()})); }
+  function loadBackup(){
+    try{
+      const b=JSON.parse(lsGet(LS.backup));
+      if(Array.isArray(b)) return {teams:b, updatedAt:0};           // старый формат
+      if(b && Array.isArray(b.teams)) return b;
+    }catch(e){}
+    return null;
+  }
+  async function restore(b){
+    try{
+      await fetch('/api/state',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({teams:b.teams, by:me, restore:true, updatedAt:b.updatedAt})});
+    }catch(e){ setTimeout(()=>restore(b), 2000); }
+  }
+
   // ---------- отправка на сервер ----------
   let pushTimer=null;
   function queuePush(){
-    dirty=true; lsSet(LS.backup, JSON.stringify(teams)); setStatus();
+    dirty=true; saveBackup(); setStatus();
     clearTimeout(pushTimer); pushTimer=setTimeout(push, 300);
   }
   async function push(){
@@ -332,17 +349,23 @@ h2{font-family:"Russo One","Golos Text",sans-serif;font-weight:400;font-size:18p
     es.onmessage=ev=>{
       let s; try{ s=JSON.parse(ev.data); }catch(e){ return; }
       online=true;
-      // сервер перезапустился и потерял счёт — вернуть его из копии на телефоне ведущего
-      if(s.fresh && mode==='edit'){
-        let backup=null; try{ backup=JSON.parse(lsGet(LS.backup)); }catch(e){}
-        if(hasData(backup)){ teams=backup; renderTeams(); renderBoard(); queuePush(); return; }
+      // сервер перезапустился — счётчик версий начинается заново
+      if(s.boot && s.boot!==bootId){ bootId=s.boot; knownRev=-1; }
+      // сервер проснулся пустым — вернуть счёт из копии на этом устройстве (любом: и ведущего, и зрителя)
+      if(s.fresh){
+        const b=loadBackup();
+        if(b && hasData(b.teams)){
+          teams=b.teams; if(mode==='edit') renderTeams(); renderBoard(); setStatus();
+          restore(b); return;
+        }
       }
       if(typeof s.rev==='number'){ if(s.rev<knownRev){ setStatus(); return; } knownRev=s.rev; }
       if(s.by && s.by===me){ setStatus(); return; }
       if(mode==='edit' && (dirty||pushing)){ setStatus(); return; }
       teams = Array.isArray(s.teams) ? s.teams : [];
       if(s.updatedAt) lastUpdate=s.updatedAt;
-      if(mode==='edit'){ lsSet(LS.backup, JSON.stringify(teams)); syncInputs(); }
+      saveBackup(s.updatedAt);
+      if(mode==='edit') syncInputs();
       renderBoard(); setUpd(); setStatus();
     };
   }
@@ -430,7 +453,7 @@ h2{font-family:"Russo One","Golos Text",sans-serif;font-weight:400;font-size:18p
   // ---------- старт ----------
   (function start(){
     if(lsGet(LS.mode)==='edit') mode='edit';
-    if(mode==='edit'){ try{ const b=JSON.parse(lsGet(LS.backup)); if(Array.isArray(b)) teams=b; }catch(e){} }
+    { const b=loadBackup(); if(b) teams=b.teams; }
     applyMode(); connect();
   })();
 })();

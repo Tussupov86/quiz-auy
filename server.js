@@ -101,7 +101,15 @@ const server = http.createServer((req, res) => {
       try { data = JSON.parse(body); } catch (e) { return send(res, 400, { error: 'bad_json' }); }
       const teams = cleanTeams(data.teams);
       if (!teams) return send(res, 400, { error: 'bad_teams' });
-      state = { rev: state.rev + 1, fresh: false, teams, updatedAt: Date.now() };
+      if (data.restore) {
+        // восстановление из копии на устройстве: принимаем, только если на сервере пусто
+        // или эта копия новее той, что уже вернул кто-то другой
+        const at = Number(data.updatedAt) || 0;
+        if (!state.fresh && !(at > state.restoredAt && state.restoredAt)) return send(res, 200, { ok: false, skipped: true });
+        state = { rev: state.rev + 1, fresh: false, teams, updatedAt: at || Date.now(), restoredAt: at || 1 };
+      } else {
+        state = { rev: state.rev + 1, fresh: false, teams, updatedAt: Date.now(), restoredAt: 0 };
+      }
       persist();
       broadcast(String(data.by || '').slice(0, 40));
       send(res, 200, { ok: true, rev: state.rev });
